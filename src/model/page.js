@@ -1,7 +1,8 @@
 import Tile from './tile';
 export default class Page {
 
-    constructor(path = null, tiles = null) {
+    constructor(uuid, path = null, tiles = null) {
+        this.uuid = uuid;
         this.path = setPath(path);
         this.tiles = setTiles(tiles);
     }
@@ -15,7 +16,7 @@ function setTiles(tiles) {
     if (!tiles) {
         tiles = new Array();
         for (let index = 0; index < 10; index++) {
-            tiles.push(new Tile(new Array));
+            tiles.push(new Tile(index));
         }
     }
     return tiles;
