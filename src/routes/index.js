@@ -1,16 +1,15 @@
 import express from 'express';
 import body from 'body-parser';
 import { exists } from 'fs';
-import mysql from 'mysql';
 import Serie from '../model/serie';
 
 
-var connection = mysql.createConnection({
-  host: 'localhost',
-  user: 'dbuser',
-  password: 's3kreee7',
-  database: 'my_db'
-});
+// var connection = mysql.createConnection({
+//   host: 'localhost',
+//   user: 'dbuser',
+//   password: 's3kreee7',
+//   database: 'my_db'
+// });
 
 // connection.connect()
 
@@ -21,6 +20,11 @@ var connection = mysql.createConnection({
 // })
 
 // connection.end()
+
+var pgp = require('pg-promise')(/*options*/);
+var db = pgp('postgres://postgres:@192.168.18.72:5432/postgres');
+
+
 
 const routes = express.Router();
 
@@ -34,10 +38,10 @@ for (let index = 0, length = 5; index < length; index++) {
 
 routes.use(body.json());
 
-routes.use((req, res, next) => {
-  req.connection = connection;
-  next();
-});
+// routes.use((req, res, next) => {
+//   req.connection = connection;
+//   next();
+// });
 
 routes.use('/series/:serie/comics/:comic/pages/:page/tiles/:tile?/', (req, res, next) => {
   let filteredSeries = series.filter(serie => serie.uuid.toString() === req.params.serie)[0];
@@ -76,19 +80,47 @@ routes.use('/series/:serie/comics/:comic/pages/:page?/', (req, res, next) => {
 });
 
 routes.use('/series/:serie/comics/:comic?/', (req, res, next) => {
-  let filteredSeries = series.filter(serie => serie.uuid.toString() === req.params.serie)[0];
-  if (filteredSeries) {
-    let filteredComics = req.params.comic ? filteredSeries.comics.filter(comic => comic.uuid.toString() === req.params.comic)[0] : filteredSeries.comics;
-    res.status(filteredComics ? 200 : 404).json(filteredComics);
-  } else {
-    res.status(filteredSeries ? 200 : 404).json(filteredSeries);
-  }
+  let query = req.params.comic ?
+    `SELECT * 
+      FROM "Comics.Series" AS serie, "Comics.Comic" AS comic 
+      WHERE serie.id = $1 AND comic.id = $2` :
+    `SELECT * 
+      FROM "Comics.Series" AS serie, "Comics.Comic" AS comic 
+      WHERE serie.id = $1`;
+
+  db.query(query, [req.params.serie, req.params.comic])
+    .then(data => {
+      res.status(200).json(data);
+    })
+    .catch(function (error) {
+      console.log('ERROR:', error)
+      res.status(500).json(error);
+    });
+
+  // let filteredSeries = series.filter(serie => serie.uuid.toString() === req.params.serie)[0];
+  // if (filteredSeries) {
+  //   let filteredComics = req.params.comic ? filteredSeries.comics.filter(comic => comic.uuid.toString() === req.params.comic)[0] : filteredSeries.comics;
+  //   res.status(filteredComics ? 200 : 404).json(filteredComics);
+  // } else {
+  //   res.status(filteredSeries ? 200 : 404).json(filteredSeries);
+  // }
 
 });
 
 routes.use('/series/:serie?/', (req, res, next) => {
-  let filteredSeries = req.params.serie ? series.filter(serie => serie.uuid.toString() === req.params.serie)[0] : series;
-  res.status(filteredSeries ? 200 : 404).json(filteredSeries);
+  let query = req.params.serie ? 'SELECT * FROM "Comics.Series" WHERE id = $1' : 'SELECT * FROM "Comics.Series"';
+  db.query(query, req.params.serie)
+    .then(data => {
+      res.status(200).json(data);
+    })
+    .catch(function (error) {
+      console.log('ERROR:', error)
+      res.status(500).json(error);
+    });
+
+  // let filteredSeries = req.params.serie ? series.filter(serie => serie.uuid.toString() === req.params.serie)[0] : series;
+  // res.status(filteredSeries ? 200 : 404).json(filteredSeries);
+
 });
 
 routes.use('/throw', (req, res, next) => {
