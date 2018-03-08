@@ -64,18 +64,36 @@ routes.use('/series/:serie/comics/:comic/pages/:page/tiles/:tile?/', (req, res, 
 });
 
 routes.use('/series/:serie/comics/:comic/pages/:page?/', (req, res, next) => {
-  let filteredSeries = series.filter(serie => serie.uuid.toString() === req.params.serie)[0];
-  if (filteredSeries) {
-    let filteredComics = filteredSeries.comics.filter(comic => comic.uuid.toString() === req.params.comic)[0];
-    if (filteredComics) {
-      let filteredPages = req.params.page ? filteredComics.pages.filter(page => page.uuid.toString() === req.params.page)[0] : filteredComics.pages;
-      res.status(filteredPages ? 200 : 404).json(filteredPages);
-    } else {
-      res.status(filteredComics ? 200 : 404).json(filteredComics);
-    }
-  } else {
-    res.status(filteredSeries ? 200 : 404).json(filteredSeries);
-  }
+  routes.use('/series/:serie/comics/:comic?/', (req, res, next) => {
+    let query = req.params.comic ?
+      `SELECT * 
+      FROM "Comics.Series" AS serie, "Comics.Comic" AS comic, "Comics.Comic" AS comic
+      WHERE serie.id = $1 AND comic.id = $2` :
+      `SELECT * 
+      FROM "Comics.Series" AS serie, "Comics.Comic" AS comic 
+      WHERE serie.id = $1`;
+
+    db.query(query, [req.params.serie, req.params.comic])
+      .then(data => {
+        res.status(200).json(data);
+      })
+      .catch(function (error) {
+        console.log('ERROR:', error)
+        res.status(500).json(error);
+      });
+  
+  // let filteredSeries = series.filter(serie => serie.uuid.toString() === req.params.serie)[0];
+  // if (filteredSeries) {
+  //   let filteredComics = filteredSeries.comics.filter(comic => comic.uuid.toString() === req.params.comic)[0];
+  //   if (filteredComics) {
+  //     let filteredPages = req.params.page ? filteredComics.pages.filter(page => page.uuid.toString() === req.params.page)[0] : filteredComics.pages;
+  //     res.status(filteredPages ? 200 : 404).json(filteredPages);
+  //   } else {
+  //     res.status(filteredComics ? 200 : 404).json(filteredComics);
+  //   }
+  // } else {
+  //   res.status(filteredSeries ? 200 : 404).json(filteredSeries);
+  // }
 
 });
 
@@ -84,9 +102,11 @@ routes.use('/series/:serie/comics/:comic?/', (req, res, next) => {
     `SELECT * 
       FROM "Comics.Series" AS serie, "Comics.Comic" AS comic 
       WHERE serie.id = $1 AND comic.id = $2` :
-    `SELECT * 
-      FROM "Comics.Series" AS serie, "Comics.Comic" AS comic 
-      WHERE serie.id = $1`;
+    `SELECT comic.* 
+      FROM "Comics.Series" AS serie
+      JOIN "Comics.SeriesComics" AS seriesComic 
+      ON seriesComic.id = $1
+      JOIN "Comics.Comic" AS comic`;
 
   db.query(query, [req.params.serie, req.params.comic])
     .then(data => {
